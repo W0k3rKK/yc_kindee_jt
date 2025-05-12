@@ -29,7 +29,7 @@ public class AttachmentUploadFormPlugin extends AbstractBillPlugIn implements Pl
 
     private String ATTACHMENT_FORM_NUMBER;
 
-    public AttachmentUploadFormPlugin(){
+    public AttachmentUploadFormPlugin() {
         String id = ISVServiceHelper.getISVInfo().getId();
         this.ATTACHMENT_FORM_NUMBER = id + "_attachmentpanel";
     }
@@ -69,7 +69,7 @@ public class AttachmentUploadFormPlugin extends AbstractBillPlugIn implements Pl
     public void closedCallBack(ClosedCallBackEvent evt) {
         super.closedCallBack(evt);
         String actionId = evt.getActionId();
-        if("uploadattachment".equals(actionId)){
+        if ("uploadattachment".equals(actionId)) {
             this.getView().updateView("attachmentpanel");
         }
     }

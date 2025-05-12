@@ -10,6 +10,7 @@ import java.util.Map;
 public class ParametersUtils {
     /**
      * 获取应用自定义参数
+     *
      * @param appNum 应用标识
      * @return 应用自定义参数
      */

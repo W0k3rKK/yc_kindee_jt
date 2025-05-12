@@ -29,8 +29,8 @@ public class EnableApprovedBasedataBillPlugin extends AbstractBillPlugIn impleme
     @Override
     public void beforeF7Select(BeforeF7SelectEvent event) {
         String fieldKey = event.getProperty().getName();
-        if (StringUtils.equals(fieldKey, BASEDATA_FIELD_KEY)){
-            ListShowParameter showParameter = (ListShowParameter)event.getFormShowParameter();
+        if (StringUtils.equals(fieldKey, BASEDATA_FIELD_KEY)) {
+            ListShowParameter showParameter = (ListShowParameter) event.getFormShowParameter();
             //是否展示审核的改为false
             showParameter.setShowApproved(false);
         }
