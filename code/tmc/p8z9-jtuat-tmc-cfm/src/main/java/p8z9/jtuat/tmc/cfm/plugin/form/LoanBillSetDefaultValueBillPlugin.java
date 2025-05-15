@@ -3,6 +3,7 @@ package p8z9.jtuat.tmc.cfm.plugin.form;
 import kd.bos.bill.AbstractBillPlugIn;
 import kd.bos.form.FormShowParameter;
 import kd.sdk.plugin.Plugin;
+import p8z9.jtuat.tmc.cfm.plugin.other.ContractBondSubmitOpExt;
 
 import java.util.EventObject;
 import java.util.Map;
@@ -11,7 +12,9 @@ import java.util.Map;
  * 债券发行申请
  * 如通过债券注册额度列表打开单据，则根据自定义参数录入字段值
  *
- * @see OpenLoanBillListPlugin
+ * @see OpenLoanBillListPlugin 参阅该文件去除必录显示
+ *
+ * @see ContractBondSubmitOpExt 搭配提交去除期限(ymd)、结束日期必录限制
  */
 public class LoanBillSetDefaultValueBillPlugin extends AbstractBillPlugIn implements Plugin {
 
