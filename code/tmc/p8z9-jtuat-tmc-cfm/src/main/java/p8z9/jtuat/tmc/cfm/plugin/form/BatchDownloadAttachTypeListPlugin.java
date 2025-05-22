@@ -8,6 +8,7 @@ import kd.bos.dataentity.entity.DynamicObjectCollection;
 import kd.bos.dataentity.resource.ResManager;
 import kd.bos.entity.datamodel.ListSelectedRow;
 import kd.bos.entity.datamodel.ListSelectedRowCollection;
+import kd.bos.eye.api.log.KDException;
 import kd.bos.fileservice.BatchDownloadRequest;
 import kd.bos.fileservice.FileService;
 import kd.bos.fileservice.FileServiceFactory;
@@ -321,7 +322,8 @@ public class BatchDownloadAttachTypeListPlugin extends AbstractListPlugin implem
             // 打开下载url
             this.openUrl(urlResult);
         } catch (Exception e) {
-            log.error(String.format("Generate Download Url err: %s", e.getMessage()), e);
+            log.error(String.format("生成下载URL失败: %s", e.getMessage()), e);
+            throw new KDException(e);
         } finally {
             FileSecurityUtil.safeClose(fout);
             FileSecurityUtil.safeClose(fin);
