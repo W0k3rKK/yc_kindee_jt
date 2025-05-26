@@ -8,6 +8,8 @@ public class BatchDownloadFileDto {
     private String billNumber;
     private String billPkId;
     private String fileType;
+    private String contractName;//  合同名称
+    private String contractNo;//    合同编号
     private long fileSize;
 
     public BatchDownloadFileDto() {
@@ -59,6 +61,22 @@ public class BatchDownloadFileDto {
 
     public void setFileType(String fileType) {
         this.fileType = fileType;
+    }
+
+    public String getContractName() {
+        return contractName;
+    }
+
+    public void setContractName(String contractName) {
+        this.contractName = contractName;
+    }
+
+    public String getContractNo() {
+        return contractNo;
+    }
+
+    public void setContractNo(String contractNo) {
+        this.contractNo = contractNo;
     }
 
     public String getDirName() {

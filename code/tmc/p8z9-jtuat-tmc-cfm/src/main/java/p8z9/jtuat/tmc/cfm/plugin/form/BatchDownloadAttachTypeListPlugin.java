@@ -26,6 +26,7 @@ import kd.bos.print.core.service.PrtAttach;
 import kd.bos.print.service.BosPrintServiceHelper;
 import kd.bos.servicehelper.AttachmentServiceHelper;
 import kd.bos.servicehelper.BusinessDataServiceHelper;
+import kd.bos.servicehelper.QueryServiceHelper;
 import kd.bos.template.orgctrl.model.PrintTemplateInfo;
 import kd.bos.template.orgctrl.service.PrintTemplateServiceFactory;
 import kd.bos.url.UrlService;
@@ -94,6 +95,15 @@ public class BatchDownloadAttachTypeListPlugin extends AbstractListPlugin implem
             Long pkValue = (Long) row.getPrimaryKeyValue();
             // 当前行的单据编号
             String billNo = row.getBillNo();
+            // 当前行部分字段
+            DynamicObject queryResult = QueryServiceHelper.queryOne(billFormId, "id,billno,contractname,contractno",
+                    new QFilter("billno", QCP.equals, billNo).toArray());
+            if (Objects.isNull(queryResult) || StringUtils.isEmpty(queryResult.getString("contractname"))) {
+                this.getView().showErrorNotification(String.format("所选单据%s未填写合同名称或合同编号", billNo));
+                return;
+            }
+            String contractName = queryResult.getString("contractname");
+            String contractNo = queryResult.getString("contractno");
 
             // 使用具有顺序特性的集合对
             Set<Long> attachIdSet = new LinkedHashSet<>();
@@ -152,6 +162,8 @@ public class BatchDownloadAttachTypeListPlugin extends AbstractListPlugin implem
                                 // String url = FilePathFactory.getFilePath().getRealPath(attInfo.getString("url"));
                                 // attDto.setUrl(url);
                                 attDto.setUrl(attInfo.getString("url"));
+                                attDto.setContractName(contractName);
+                                attDto.setContractNo(contractNo);
 
                                 log.info("FileType: {}, FileName: {}", attDto.getFileType(), attDto.getFileName());
 
@@ -166,13 +178,15 @@ public class BatchDownloadAttachTypeListPlugin extends AbstractListPlugin implem
                 long curUserId = RequestContext.get().getCurrUserId();
                 PrintTemplateInfo tpl = PrintTemplateServiceFactory.getService().getPrintTemplate(curUserId, billFormId);
                 String userSettingTplId = tpl.getUserSettingTplId();
-                if (StringUtils.isBlank(userSettingTplId)) {
+                if (StringUtils.isEmpty(userSettingTplId)) {
                     this.getView().showTipNotification(ResManager.loadKDString("没有设置打印模板，请在“打印设置”中进行设置。", "BatchDownloadAttachTypeListPlugin_2", "tmc-cfm", new Object[0]));
                     return;
                 }
 
                 BatchDownloadFileDto printDto = new BatchDownloadFileDto();
                 printDto.setBillNumber(billNo);
+                printDto.setContractNo(contractNo);
+                printDto.setContractName(contractName);
                 // 处理打印模板文件信息
                 this.dealPrintDto(tpl, pkValue, printDto);
 
@@ -262,7 +276,17 @@ public class BatchDownloadAttachTypeListPlugin extends AbstractListPlugin implem
             List<BatchDownloadFileDto> files = entry.getValue();
 
             // 创建单据编号目录
-            BatchDownloadRequest.Dir billDir = new BatchDownloadRequest.Dir(billNo);
+            // BatchDownloadRequest.Dir billDir = new BatchDownloadRequest.Dir(billNo);
+
+            // 假设每个 billNo 对应的 dto 列表中都包含相同的合同信息
+            BatchDownloadFileDto sampleDto = files.get(0); // 取一个样例dto获取合同信息
+            String contractName = sampleDto.getContractName();
+            String contractNo = sampleDto.getContractNo();
+
+            // 构建新的目录名："合同名_合同号"
+            String newDirName = contractName + "_" + contractNo;
+            BatchDownloadRequest.Dir billDir = new BatchDownloadRequest.Dir(newDirName);
+
 
             // 按照 附件分类 分组
             Map<String, List<BatchDownloadFileDto>> groupedByFileType = new LinkedHashMap<>();
