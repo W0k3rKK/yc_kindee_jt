@@ -1,23 +1,22 @@
 package p8z9.jtuat.tmc.cfm.plugin.report;
 
-import com.tongtech.jms.ra.util.Exc;
 import kd.bos.dataentity.entity.DynamicObject;
 import kd.bos.dataentity.entity.DynamicObjectCollection;
-import kd.bos.entity.datamodel.events.PackageDataEvent;
 import kd.bos.entity.report.ReportQueryParam;
-import kd.bos.report.events.SummaryEvent;
 import kd.bos.report.plugin.AbstractReportFormPlugin;
 import kd.sdk.plugin.Plugin;
+import kd.tmc.cfm.common.enums.BizTypeEnum;
+import kd.tmc.fbp.common.helper.TmcDataServiceHelper;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 报表界面插件
  * 用于处理金融交易相关报表数据的行数据汇总计算，包括“小计”、“合计”等特殊行的处理。
+ * 在报表上增加“合同号 contractno(银行提款处理/企业提款处理)”、“债券简码 shortname（债券发行）”、“债券名称 contractname（债券发行）”字段信息
  */
 public class TradeFinanceFromListPluginExt extends AbstractReportFormPlugin implements Plugin {
     /**
@@ -87,8 +86,37 @@ public class TradeFinanceFromListPluginExt extends AbstractReportFormPlugin impl
                 totalSums.forEach(obj::set);//  设置合计值
             }
         }
-    }
 
+        // 第三遍遍历，处理“合同号”、“债券简码”、“债券名称”
+        for (DynamicObject obj : rowData) {
+            Long loanBillId = obj.getLong("loanbillid");
+            if (loanBillId.equals(0L)) {
+                continue;
+            }
+            // String entityNumber = "cfm_loanbill";//提款处理
+            String entityNumber = "cfm_loanbill_bond";//债券发行
+            // 不能一次查询完所有字段，因为提款处理缺少shortname字段
+            DynamicObject loanTypeData = TmcDataServiceHelper.loadSingle(loanBillId, entityNumber, "loantype,shortname,contractname,contractno");
+            String loanType = loanTypeData.getString("loantype");//贷款类型
+            if (BizTypeEnum.BOND.getValue().equals(loanType)) {
+                //债券发行
+                // entityNumber = "cfm_loanbill_bond";
+                // DynamicObject billData = TmcDataServiceHelper.loadSingle(loanBillId, entityNumber, "shortname,contractname");
+                if (!Objects.isNull(loanTypeData)) {
+                    obj.set("p8z9_zqjm", loanTypeData.get("shortname"));
+                    obj.set("p8z9_zqmc", loanTypeData.get("contractname"));
+                }
+            } else if (BizTypeEnum.FINLEASE.getValue().equals(loanType)) {
+                entityNumber = "fl_receiptbill";//售后租回回款，因无该业务数据暂无需处理
+            } else {
+                //提款处理
+                // DynamicObject billData = TmcDataServiceHelper.loadSingle(loanBillId, entityNumber, "contractno");
+                if (!Objects.isNull(loanTypeData)) {
+                    obj.set("p8z9_contractno", loanTypeData.get("contractno"));
+                }
+            }
+        }
+    }
 
 
     /**
