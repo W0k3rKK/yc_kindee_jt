@@ -84,15 +84,6 @@ public class TradeFinanceFilterHelperExt {
                     filter.and((new QFilter("bizdate", ">=", currentDate)).and(new QFilter("bizdate", "<", DateUtils.getNextDay(currentDate, 1))));
             }
         }
-
-        // if (RptDateRangeEnum.CUSTOM.getValue().equals(bizDate)) {
-        //     Date bizDateStartDate = (Date) paramMap.get("bizdateranges_startdate");
-        //     Date bizDateEndDate = (Date) paramMap.get("bizdateranges_enddate");
-        //     if (!EmptyUtil.isEmpty(bizDateStartDate) && !EmptyUtil.isEmpty(bizDateEndDate)) {
-        //         filter.and((new QFilter("bizdate", ">=", bizDateStartDate)).and(new QFilter("bizdate", "<=", bizDateEndDate)));
-        //     }
-        // }
-
         return filter;
     }
 
@@ -223,4 +214,37 @@ public class TradeFinanceFilterHelperExt {
                 srcCur.getLong("id"), 1L, ExcDate);//人民币默认id为1
 
     }
+
+    public static DataSet interestRateDS(List<Long> loanBillIds, Date cutoffDate, Class clazz) {
+        QFilter qFilter = new QFilter("id", "in", loanBillIds);
+        String field_loanBillId = "p8z9_loanbillid";
+        String field_intRate = "p8z9_intrate";
+        qFilter.and(new QFilter("rateadjust_entry.ra_confirmdate", "<", DateUtils.getNextDay(cutoffDate, 1)));
+        String selFields = "id as " + field_loanBillId + ", rateadjust_entry.ra_yearrate as " + field_intRate + ", rateadjust_entry.ra_confirmdate as confirmdate";
+        DataSet intRateDS = QueryServiceHelper.queryDataSet(clazz.getName() + "_interestrate", "cfm_loanbill", selFields, qFilter.toArray(), null);
+        DataSet maxDS = intRateDS.copy().groupBy(new String[]{field_loanBillId}).max("confirmdate", "maxconfirmdate").finish();
+        intRateDS = maxDS.leftJoin(intRateDS).on(field_loanBillId, field_loanBillId).on("maxconfirmdate", "confirmdate").select(field_loanBillId, field_intRate).finish();
+        intRateDS = intRateDS.groupBy(new String[]{field_loanBillId}).max(field_intRate).finish();
+        return intRateDS;
+    }
+
+    /**
+     * 根据传入时点计算未还本金汇总
+     * @param loanBillIds 提款单id
+     * @param cutoffDate    时点日期
+     * @param field_billId  报表中单据id字段标识
+     * @param field_Amt     报表中未还本金字段标识
+     * @param clazz   数据集类
+     * @return
+     */
+    public static DataSet enotrePayAmtDS(List<Long> loanBillIds, Date cutoffDate, String field_billId, String field_Amt, Class clazz) {
+        QFilter billNoFilter = new QFilter("id", "in", loanBillIds);
+        QFilter cutOffDateFilter = new QFilter("repayplan_entry.exrepaymentdate", ">=", cutoffDate);
+        String selProps = new StringBuilder("id AS ").append(field_billId).append(", ")
+                .append("repayplan_entry.enotrepayamount").toString();
+        DataSet enotrePayAmtDS = QueryServiceHelper.queryDataSet(clazz.getName(), "cfm_loanbill", selProps, new QFilter[]{billNoFilter, cutOffDateFilter}, "id");
+        DataSet amtSumDS = enotrePayAmtDS.copy().groupBy(new String[]{field_billId}).sum("repayplan_entry.enotrepayamount", field_Amt).finish();
+        return amtSumDS;
+    }
+
 }
