@@ -8,6 +8,7 @@ import kd.bos.logging.LogFactory;
 import kd.bos.orm.query.QFilter;
 import kd.bos.report.plugin.AbstractReportFormPlugin;
 import kd.bos.servicehelper.BusinessDataServiceHelper;
+import kd.bos.util.StringUtils;
 import kd.sdk.plugin.Plugin;
 
 import java.util.Objects;
@@ -15,7 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 融资情况明细表
+ * 融资情况明细表、本年融资情况表
  * 报表界面插件
  */
 public class FinancingStatementFormPlugin extends AbstractReportFormPlugin implements Plugin {
@@ -31,7 +32,7 @@ public class FinancingStatementFormPlugin extends AbstractReportFormPlugin imple
             DynamicObject fin = BusinessDataServiceHelper.loadSingleFromCache("cfm_financingvarieties",
                     new QFilter("name", "=", finName).toArray());
             if (Objects.isNull(fin)) {
-                logger.error("行{}未查询到名称为 {} 的融资类别详细数据！", rowDataDC.indexOf(rowData),finName);
+                logger.error("行{}未查询到名称为 {} 的融资类别详细数据！", rowDataDC.indexOf(rowData), finName);
             } else {
                 String firstCategory = this.findFirstCategory(fin);
                 rowData.set("p8z9_finproduct", firstCategory);
@@ -39,24 +40,10 @@ public class FinancingStatementFormPlugin extends AbstractReportFormPlugin imple
 
             // 2、处理期限，转换为月（m）
             String termStr = rowData.getString("p8z9_term");
-            int months = this.convertToMonths(termStr);
-            rowData.set("p8z9_term", String.valueOf(months) + "m");
-
-            /*// 3、计算本位币金额
-            DynamicObject srcCur = rowData.getDynamicObject("p8z9_srccur");//原币
-            BigDecimal notrePayAmt = rowData.getBigDecimal("p8z9_notrepayamount");//融资余额（原币） -- 未还本金
-            Date bizdate = rowData.getDate("p8z9_bizdate");//发放时间
-            if (BigdecimalUtil.isEquals(notrePayAmt, BigDecimal.ZERO)) {
-                return;
+            if (StringUtils.isNotEmpty(termStr)) {
+                int months = this.convertToMonths(termStr);
+                rowData.set("p8z9_term", String.valueOf(months) + "m");
             }
-            BigDecimal exchangeRate = TradeFinanceFilterHelperExt.getExchangeRate(bizdate, srcCur);
-            BigDecimal baseNotrePayAmt = notrePayAmt.multiply(exchangeRate);
-            rowData.set("p8z9_basenotrepayamt", baseNotrePayAmt);//融资余额（本位币）
-            BigDecimal rate = rowData.getBigDecimal("p8z9_rate");//利率
-            BigDecimal costInterest = baseNotrePayAmt.multiply(rate);//融资成本-利息 = 融资余额（本位币） * 利率
-            rowData.set("p8z9_costinterest", costInterest);//设置融资成本-利息
-            BigDecimal costRate = costInterest.divide(baseNotrePayAmt);//实际成本率 = 融资成本-利息 / 融资余额（本位币）
-            rowData.set("p8z9_costrate", costRate);//设置实际成本率*/
 
         }
 
