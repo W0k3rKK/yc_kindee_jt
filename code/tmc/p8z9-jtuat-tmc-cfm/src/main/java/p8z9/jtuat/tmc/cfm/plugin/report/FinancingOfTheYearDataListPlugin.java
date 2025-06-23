@@ -1,5 +1,6 @@
 package p8z9.jtuat.tmc.cfm.plugin.report;
 
+import cn.hutool.core.date.DateUtil;
 import kd.bos.algo.DataSet;
 import kd.bos.entity.report.AbstractReportListDataPlugin;
 import kd.bos.entity.report.ReportQueryParam;
@@ -69,7 +70,10 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
 
         QFilter loanBillQFilter = TradeFinanceFilterHelperExt.loanBillQFilter(queryParam);
 
-        loanBillQFilter.and(new QFilter("bizdate", "<=", paramMap.get("p8z9_filter_cutoffdate")));
+        // 本年末
+        loanBillQFilter.and(new QFilter("bizdate", "<=", DateUtil.endOfYear(this.cutoffdate)));
+        // 本年初
+        loanBillQFilter.and(new QFilter("bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate)));
         QFilter elFilter = loanBillQFilter.copy();
         QFilter bondQFilter = loanBillQFilter.copy();
         QFilter blQFilter = loanBillQFilter.copy();
@@ -124,9 +128,8 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
 
         // 计算金额本位币、金额公式
         String curUnit = paramMap.get("p8z9_filter_currencyunit").toString();// 货币单位
-        Date cutoffDate = (Date) paramMap.get("p8z9_filter_cutoffdate");
         String curField = "p8z9_srccur";
-        DataSet rateDs = TradeFinanceFilterHelperExt.getExChangeRateDs(dataSet, curField, 1L, cutoffDate);
+        DataSet rateDs = TradeFinanceFilterHelperExt.getExChangeRateDs(dataSet, curField, 1L, this.cutoffdate);
         dataSet = dataSet.addNullField("p8z9_principal", "p8z9_interest", "p8z9_baseinterest", "p8z9_baseamount");// 需计算的金额字段，本金、利息（原币）、利息（本位币）、融资总额（本位币）
         dataSet = dataSet.addField("'0'", "p8z9_sumlevel");
         // 连接后需查询的字段，查出汇率进行计算
