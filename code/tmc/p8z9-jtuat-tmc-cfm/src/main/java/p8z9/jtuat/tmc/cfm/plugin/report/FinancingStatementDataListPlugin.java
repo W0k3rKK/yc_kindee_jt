@@ -165,9 +165,9 @@ public class FinancingStatementDataListPlugin extends AbstractReportListDataPlug
         joinSelPropList.add("rate");
         dataSet = dataSet.leftJoin(RateDs).on(curField, "tarcurrency").select(joinSelPropList.toArray(new String[0])).finish();
         dataSet = dataSet.updateField(FIELDS[4], FIELDS[4] + "/" + curUnit);//融资余额（原币）
-        dataSet = dataSet.updateField("p8z9_basenotrepayamt", "p8z9_notrepayamt * rate / " + curUnit);//融资余额（本位币）
-        dataSet = dataSet.updateField("p8z9_costinterest", "p8z9_basenotrepayamt * p8z9_rate /" + curUnit);//融资成本-利息=融资余额（本位币）*利率
-        dataSet = dataSet.updateField("p8z9_costrate", "p8z9_costinterest / p8z9_basenotrepayamt /" + curUnit);//实际成本率=融资成本-利息/融资余额（本位币）
+        dataSet = dataSet.updateField("p8z9_basenotrepayamt", "p8z9_notrepayamt * rate");//融资余额（本位币）
+        dataSet = dataSet.updateField("p8z9_costinterest", "p8z9_basenotrepayamt * p8z9_rate");//融资成本-利息=融资余额（本位币）*利率
+        dataSet = dataSet.updateField("p8z9_costrate", "CASE WHEN p8z9_basenotrepayamt <> 0 AND p8z9_basenotrepayamt IS NOT NULL THEN p8z9_costinterest / p8z9_basenotrepayamt ELSE 0 END");//实际成本率=融资成本-利息/融资余额（本位币）
         dataSet = dataSet.select(this.getSelectProps());
 
         return dataSet;

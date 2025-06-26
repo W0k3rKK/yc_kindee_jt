@@ -71,14 +71,14 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         QFilter loanBillQFilter = TradeFinanceFilterHelperExt.loanBillQFilter(queryParam);
 
         // 本年末
-        loanBillQFilter.and(new QFilter("bizdate", "<=", DateUtil.endOfYear(this.cutoffdate)));
+        // loanBillQFilter.and(new QFilter("bizdate", "<=", DateUtil.endOfYear(this.cutoffdate)));
         // 本年初
         loanBillQFilter.and(new QFilter("bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate)));
         QFilter elFilter = loanBillQFilter.copy();
         QFilter bondQFilter = loanBillQFilter.copy();
         QFilter blQFilter = loanBillQFilter.copy();
 
-        List<DataSet> dataDS = new ArrayList<>();
+        List<DataSet> dataSetList = new ArrayList<>();
         String dataSource = paramMap.get("p8z9_filter_datasource").toString();
 
         // 债券发行
@@ -88,7 +88,7 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
             bondQFilter.and(slCredFilter);
             String zwfxSelectFields = this.getSelectFields(LoanTypeEnum.BOND.getValue());
             DataSet bondDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "cfm_loanbill_bond", zwfxSelectFields, bondQFilter.toArray(), null);
-            dataDS.add(bondDS);
+            dataSetList.add(bondDS);
         }
 
         // 融资租赁
@@ -102,7 +102,7 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
             elFilter.and(new QFilter("loantype", "in", Arrays.asList("entrust", "ec")));
             String qytkSelectFields = this.getSelectFields("entrustloan");
             loanBillDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "cfm_loanbill", qytkSelectFields, elFilter.toArray(), null);
-            dataDS.add(loanBillDS);
+            dataSetList.add(loanBillDS);
         }
 
 
@@ -111,9 +111,9 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
             blQFilter.and("loantype", "=", LoanTypeEnum.BANKLOAN.getValue());
             String yhtkSelectFields = this.getSelectFields("bankloan");
             loanBillDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "cfm_loanbill", yhtkSelectFields, blQFilter.toArray(), null);
-            dataDS.add(loanBillDS);
+            dataSetList.add(loanBillDS);
         }
-        DataSet dataSet = EmptyUtil.isEmpty(dataDS) ? null : dataDS.stream().reduce(DataSet::union).get();
+        DataSet dataSet = EmptyUtil.isEmpty(dataSetList) ? null : dataSetList.stream().reduce(DataSet::union).get();
         if (Objects.isNull(dataSet)) {
             return null;
         }
@@ -132,18 +132,18 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         DataSet rateDs = TradeFinanceFilterHelperExt.getExChangeRateDs(dataSet, curField, 1L, this.cutoffdate);
         dataSet = dataSet.addNullField("p8z9_principal", "p8z9_interest", "p8z9_baseinterest", "p8z9_baseamount");// 需计算的金额字段，本金、利息（原币）、利息（本位币）、融资总额（本位币）
         dataSet = dataSet.addField("'0'", "p8z9_sumlevel");
-        // 连接后需查询的字段，查出汇率进行计算
+        // 连接需查询的字段，查出汇率进行计算
         List<String> joinSelPropList = new ArrayList<>();
         Collections.addAll(joinSelPropList, this.getReportFields());
         joinSelPropList.add("tarcurrency");
         joinSelPropList.add("rate");
         dataSet = dataSet.leftJoin(rateDs).on(curField, "tarcurrency").select(joinSelPropList.toArray(new String[0])).finish();
         dataSet = dataSet.updateField("p8z9_drawamount", "p8z9_drawamount /" + curUnit);// 实际融资额（原币）
-        dataSet = dataSet.updateField("p8z9_principal", "p8z9_drawamount * rate /" + curUnit);// 本金 为实际融资额的本位币
-        dataSet = dataSet.updateField("p8z9_interest", "p8z9_drawamount * p8z9_totalcostratio /" + curUnit);// 利息（原币）=实际融资额（原币）*总成本率
-        dataSet = dataSet.updateField("p8z9_baseinterest", "p8z9_principal * p8z9_totalcostratio * rate /" + curUnit);// 利息（本位币）=本金*总成本率
+        dataSet = dataSet.updateField("p8z9_principal", "p8z9_drawamount * rate");// 本金 为实际融资额的本位币
+        dataSet = dataSet.updateField("p8z9_interest", "p8z9_drawamount * p8z9_totalcostratio");// 利息（原币）=实际融资额（原币）*总成本率
+        dataSet = dataSet.updateField("p8z9_baseinterest", "p8z9_principal * p8z9_totalcostratio * rate");// 利息（本位币）=本金*总成本率
         dataSet = dataSet.updateField("p8z9_amount", "p8z9_amount /" + curUnit);// 融资总额（原币）
-        dataSet = dataSet.updateField("p8z9_baseamount", "p8z9_amount * rate /" + curUnit);// 融资总额（本位币）
+        dataSet = dataSet.updateField("p8z9_baseamount", "p8z9_amount * rate");// 融资总额（本位币）
         dataSet = dataSet.select(this.getReportFields());
 
         return dataSet;
