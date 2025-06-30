@@ -119,12 +119,12 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         }
         dataSet = dataSet.orderBy(new String[]{"p8z9_org"});
 
-        // 获取单据id集合
+        /*// 获取单据id集合
         List<Long> loanBillIds = TradeFinanceFilterHelper.getloanBillIds(dataSet, "p8z9_loanbillid");
 
         // 获取浮动利率
         DataSet interestRateDS = TradeFinanceFilterHelperExt.interestRateDS(loanBillIds, this.cutoffdate, this.getClass());
-        dataSet = dataSet.leftJoin(interestRateDS).on("p8z9_loanbillid", "p8z9_loanbillid").select(dataSet.getRowMeta().getFieldNames(), new String[]{"p8z9_intrate"}).finish();
+        dataSet = dataSet.leftJoin(interestRateDS).on("p8z9_loanbillid", "p8z9_loanbillid").select(dataSet.getRowMeta().getFieldNames(), new String[]{"p8z9_intrate"}).finish();*/
 
         // 计算金额本位币、金额公式
         String curUnit = paramMap.get("p8z9_filter_currencyunit").toString();// 货币单位
@@ -166,6 +166,7 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
                 .append("currency AS p8z9_srccur, ")
                 .append("1 AS p8z9_basecur, ")
                 .append("drawamount AS p8z9_drawamount, ")
+                .append("p8z9_tzll AS p8z9_intrate, ")
                 .append("amount AS p8z9_amount, ")
                 .append("p8z9_tzll AS p8z9_totalcostratio, ")
                 .append("description AS p8z9_description, ")
