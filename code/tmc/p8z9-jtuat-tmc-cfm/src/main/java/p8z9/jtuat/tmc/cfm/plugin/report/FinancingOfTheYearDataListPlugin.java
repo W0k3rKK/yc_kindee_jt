@@ -4,6 +4,8 @@ import cn.hutool.core.date.DateUtil;
 import kd.bos.algo.DataSet;
 import kd.bos.entity.report.AbstractReportListDataPlugin;
 import kd.bos.entity.report.ReportQueryParam;
+import kd.bos.logging.Log;
+import kd.bos.logging.LogFactory;
 import kd.bos.orm.query.QFilter;
 import kd.bos.servicehelper.QueryServiceHelper;
 import kd.sdk.plugin.Plugin;
@@ -12,19 +14,32 @@ import kd.tmc.cfm.report.helper.ReportCommonHelper;
 import kd.tmc.cfm.report.helper.TradeFinanceFilterHelper;
 import kd.tmc.cfm.report.helper.TradeFinanceRptHelper;
 import kd.tmc.fbp.common.util.EmptyUtil;
+import p8z9.jtuat.tmc.cfm.plugin.report.util.FinanceHelper;
 
 import java.util.*;
 
 /**
  * 本年融资情况表
  * 报表取数插件
+ * todo 报表实际利率、利息除以一百   ---
+ * todo 查询条件从年份明细到年月日   ---
+ * todo 目前债券发行中，主要债权人分录没有行数未展示在报表中  ---
+ * todo 只有本位币需要小计及合计    ---
+ * todo 债券发行类型，增加债券名称（取自债券发行同名字段），并把融资机构全部置为“其他”    ---
+ * todo 提款相关类型，增加合同号列   ---
  *
  * @see kd.tmc.cfm.report.data.TradeFinanceDataListPlugin#queryDataSet
  * @see TradeFinanceFilterHelper#interestRateDS(List, Date, Class)
  */
 public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlugin implements Plugin {
 
+    private static final Log logger = LogFactory.getLog(FinancingOfTheYearDataListPlugin.class);
+
     private Date cutoffdate;
+
+    private void initParam(Map<String, Object> paramMap) {
+        this.cutoffdate = (Date) paramMap.get("p8z9_filter_cutoffdate");
+    }
 
     @Override
     public DataSet query(ReportQueryParam queryParam, Object o) throws Throwable {
@@ -32,15 +47,32 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         Map<String, Object> paramMap = ReportCommonHelper.transQueryParam(queryParam);
         // 初始化成员变量
         this.initParam(paramMap);
+        DataSet dataSet = null;
+        try {
+            // 根据数据源查询单据（含通用过滤条件
+            dataSet = this.queryLoanBillDS(queryParam, paramMap);
+            if (dataSet == null) {
+                return FinanceHelper.createEmptyDS();
+            }
 
-        // 根据数据源查询单据（含通用过滤条件
-        DataSet dataSet = this.queryLoanBillDS(queryParam, paramMap);
+            // 小计及合计行
+            dataSet = this.addSumRows(dataSet);
+        } catch (Exception e) {
+            logger.error(e);
+        }
 
+
+        return dataSet;
+    }
+
+    private DataSet addSumRows(DataSet dataSet) {
         // 1、小计行构建
-        String[] sumFields = new String[]{"p8z9_dutyunit", "p8z9_finproduct", "p8z9_guarantee", "p8z9_bizdate", "p8z9_term", "p8z9_billno",
-                "p8z9_srccur", "p8z9_basecur", "p8z9_interest", "p8z9_baseinterest", "p8z9_drawamount", "p8z9_intrate", "p8z9_totalcostratio", "p8z9_isrenewal", "p8z9_description",
-                "p8z9_loanbillid"};
-        DataSet dataSetSum = dataSet.copy().groupBy(new String[]{"p8z9_org"}).sum("p8z9_drawamount").sum("p8z9_amount").sum("p8z9_baseamount").sum("p8z9_principal").finish();
+        String[] sumFields = new String[]{"p8z9_dutyunit", "p8z9_finproduct", "p8z9_guarantee", "p8z9_bizdate", "p8z9_term", "p8z9_billno", "p8z9_contractname", "p8z9_contractno",
+                "p8z9_srccur", "p8z9_basecur", "p8z9_drawamount", "p8z9_amount", "p8z9_interest", "p8z9_intrate", "p8z9_totalcostratio", "p8z9_isrenewal", "p8z9_description", "p8z9_loanbillid"};
+        DataSet dataSetSum = dataSet.copy().groupBy(new String[]{"p8z9_org"})
+                .sum("p8z9_baseamount")
+                .sum("p8z9_principal")
+                .sum("p8z9_baseinterest").finish();
         dataSetSum = dataSetSum.addField("'小计'", "p8z9_textcreditor");//将“小计”字段添加到String字段类型中
         dataSetSum = dataSetSum.addField("'1'", "p8z9_sumlevel");
         dataSetSum = dataSetSum.addNullField(sumFields);
@@ -48,30 +80,28 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         dataSet = dataSet.union(dataSetSum).orderBy(new String[]{"p8z9_org", "p8z9_sumlevel"});// union默认不会剔除重复数据
 
         // 2、合计行构建
-        String[] totalSumFields = new String[]{"p8z9_org", "p8z9_dutyunit", "p8z9_finproduct", "p8z9_guarantee", "p8z9_bizdate", "p8z9_term", "p8z9_billno",
-                "p8z9_srccur", "p8z9_basecur", "p8z9_interest", "p8z9_baseinterest", "p8z9_drawamount", "p8z9_intrate", "p8z9_totalcostratio", "p8z9_isrenewal", "p8z9_description",
-                "p8z9_loanbillid"};
-        DataSet dataSetTotalSum = dataSet.copy().filter("p8z9_sumlevel = '1'").groupBy(null).sum("p8z9_drawamount").sum("p8z9_amount").sum("p8z9_baseamount").sum("p8z9_principal").finish();
+        String[] totalSumFields = new String[]{"p8z9_org", "p8z9_dutyunit", "p8z9_finproduct", "p8z9_guarantee", "p8z9_bizdate", "p8z9_term", "p8z9_billno", "p8z9_contractname", "p8z9_contractno",
+                "p8z9_srccur", "p8z9_basecur", "p8z9_drawamount", "p8z9_amount", "p8z9_interest", "p8z9_intrate", "p8z9_totalcostratio", "p8z9_isrenewal", "p8z9_description", "p8z9_loanbillid"};
+        DataSet dataSetTotalSum = dataSet.copy().filter("p8z9_sumlevel = '1'").groupBy(null)
+                .sum("p8z9_baseamount")
+                .sum("p8z9_principal")
+                .sum("p8z9_baseinterest").finish();
         dataSetTotalSum = dataSetTotalSum.addField("'合计'", "p8z9_textcreditor");//将“合计”字段添加到String字段类型中
         dataSetTotalSum = dataSetTotalSum.addField("'2'", "p8z9_sumlevel");
         dataSetTotalSum = dataSetTotalSum.addNullField(totalSumFields);
         dataSetTotalSum = dataSetTotalSum.select(this.getReportFields());//对合计DS的字段进行排序以对应原DS，进行下一步的union
         dataSet = dataSet.union(dataSetTotalSum);
 
-
         return dataSet;
     }
 
-    private void initParam(Map<String, Object> paramMap) {
-        this.cutoffdate = (Date) paramMap.get("p8z9_filter_cutoffdate");
-    }
 
     private DataSet queryLoanBillDS(ReportQueryParam queryParam, Map<String, Object> paramMap) {
 
-        QFilter loanBillQFilter = TradeFinanceFilterHelperExt.loanBillQFilter(queryParam);
+        QFilter loanBillQFilter = FinanceHelper.loanBillQFilter(queryParam);
 
-        // 本年末
-        // loanBillQFilter.and(new QFilter("bizdate", "<=", DateUtil.endOfYear(this.cutoffdate)));
+        // 截止日期
+        loanBillQFilter.and(new QFilter("bizdate", "<=", this.cutoffdate));
         // 本年初
         loanBillQFilter.and(new QFilter("bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate)));
         QFilter elFilter = loanBillQFilter.copy();
@@ -82,10 +112,12 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         String dataSource = paramMap.get("p8z9_filter_datasource").toString();
 
         // 债券发行
-        QFilter slCredFilter;
+        // QFilter slCredFilter;
         if (dataSource.contains(LoanTypeEnum.BOND.getValue())) {
-            slCredFilter = TradeFinanceRptHelper.getLoanTypeFilter(LoanTypeEnum.BOND.getValue());
-            bondQFilter.and(slCredFilter);
+            // slCredFilter = TradeFinanceRptHelper.getLoanTypeFilter(LoanTypeEnum.BOND.getValue());
+            // bondQFilter.and(slCredFilter);
+            QFilter bondCredFilter = TradeFinanceRptHelper.getBondCreditorFilter(paramMap);
+            bondQFilter.and(bondCredFilter);
             String zwfxSelectFields = this.getSelectFields(LoanTypeEnum.BOND.getValue());
             DataSet bondDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "cfm_loanbill_bond", zwfxSelectFields, bondQFilter.toArray(), null);
             dataSetList.add(bondDS);
@@ -126,10 +158,16 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         DataSet interestRateDS = TradeFinanceFilterHelperExt.interestRateDS(loanBillIds, this.cutoffdate, this.getClass());
         dataSet = dataSet.leftJoin(interestRateDS).on("p8z9_loanbillid", "p8z9_loanbillid").select(dataSet.getRowMeta().getFieldNames(), new String[]{"p8z9_intrate"}).finish();*/
 
+        dataSet = this.calAmt(dataSet, paramMap);
+
+        return dataSet;
+    }
+
+    private DataSet calAmt(DataSet dataSet, Map<String, Object> paramMap) {
         // 计算金额本位币、金额公式
         String curUnit = paramMap.get("p8z9_filter_currencyunit").toString();// 货币单位
         String curField = "p8z9_srccur";
-        DataSet rateDs = TradeFinanceFilterHelperExt.getExChangeRateDs(dataSet, curField, 1L, this.cutoffdate);
+        DataSet rateDs = FinanceHelper.getExChangeRateDs(dataSet, curField, 1L, this.cutoffdate);
         dataSet = dataSet.addNullField("p8z9_principal", "p8z9_interest", "p8z9_baseinterest", "p8z9_baseamount");// 需计算的金额字段，本金、利息（原币）、利息（本位币）、融资总额（本位币）
         dataSet = dataSet.addField("'0'", "p8z9_sumlevel");
         // 连接需查询的字段，查出汇率进行计算
@@ -140,8 +178,8 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
         dataSet = dataSet.leftJoin(rateDs).on(curField, "tarcurrency").select(joinSelPropList.toArray(new String[0])).finish();
         dataSet = dataSet.updateField("p8z9_drawamount", "p8z9_drawamount /" + curUnit);// 实际融资额（原币）
         dataSet = dataSet.updateField("p8z9_principal", "p8z9_drawamount * rate");// 本金 为实际融资额的本位币
-        dataSet = dataSet.updateField("p8z9_interest", "p8z9_drawamount * p8z9_totalcostratio");// 利息（原币）=实际融资额（原币）*总成本率
-        dataSet = dataSet.updateField("p8z9_baseinterest", "p8z9_principal * p8z9_totalcostratio * rate");// 利息（本位币）=本金*总成本率
+        dataSet = dataSet.updateField("p8z9_interest", "p8z9_drawamount * p8z9_totalcostratio / 100");// 利息（原币）=实际融资额（原币）*总成本率%
+        dataSet = dataSet.updateField("p8z9_baseinterest", "p8z9_interest * rate");// 利息（本位币）
         dataSet = dataSet.updateField("p8z9_amount", "p8z9_amount /" + curUnit);// 融资总额（原币）
         dataSet = dataSet.updateField("p8z9_baseamount", "p8z9_amount * rate");// 融资总额（本位币）
         dataSet = dataSet.select(this.getReportFields());
@@ -173,15 +211,19 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
                 .append("id as p8z9_loanbillid, ")
                 .append("loancontractbill.p8z9_radiooptgroupfield1 AS p8z9_isrenewal, ");//是否续贷项目，提款处理和债券发行取值路径相同
         switch (dataSource) {
-            // 债权人、担保方式
+            // 债券发行：债权人、担保方式
             case "bond":
-                return commonSelFields.append("investor_entry.e_investorname AS p8z9_textcreditor, ")
+                return commonSelFields.append("'' AS p8z9_contractno, ")
+                        .append("contractname AS p8z9_contractname, ")
+                        .append("'其他' AS p8z9_textcreditor, ")
                         .append("guaranteeway AS p8z9_guarantee")
                         .toString();
-            // 债权人、担保方式
+            // 提款处理：债权人、担保方式
             case "entrustloan":
             case "bankloan":
-                return commonSelFields.append("textcreditor AS p8z9_textcreditor, ")
+                return commonSelFields.append("contractno AS p8z9_contractno, ")
+                        .append("'' AS p8z9_contractname, ")
+                        .append("textcreditor AS p8z9_textcreditor, ")
                         .append("loancontractbill.guarantee AS p8z9_guarantee")
                         .toString();
 
@@ -194,9 +236,9 @@ public class FinancingOfTheYearDataListPlugin extends AbstractReportListDataPlug
      */
     private String[] getReportFields() {
         // 融资主体	融资机构	融资项目责任部门	交易模式	增信措施	到账时间	期限	实际融资额/万元	融资总额/万元	利息（原币）  利息（本位币）	本金 合同利率	总成本率 是否续贷项目	备注  合计排序    提款单id
-        return new String[]{"p8z9_org", "p8z9_textcreditor", "p8z9_dutyunit", "p8z9_finproduct", "p8z9_guarantee", "p8z9_bizdate",
-                "p8z9_term", "p8z9_billno", "p8z9_srccur", "p8z9_basecur", "p8z9_drawamount", "p8z9_amount", "p8z9_baseamount", "p8z9_interest", "p8z9_baseinterest",
-                "p8z9_principal", "p8z9_intrate", "p8z9_totalcostratio", "p8z9_isrenewal", "p8z9_description", "p8z9_sumlevel", "p8z9_loanbillid"};
+        return new String[]{"p8z9_org", "p8z9_textcreditor", "p8z9_dutyunit", "p8z9_finproduct", "p8z9_guarantee", "p8z9_bizdate", "p8z9_term", "p8z9_billno",
+                "p8z9_contractname", "p8z9_contractno", "p8z9_srccur", "p8z9_basecur", "p8z9_drawamount", "p8z9_amount", "p8z9_baseamount", "p8z9_interest",
+                "p8z9_baseinterest", "p8z9_principal", "p8z9_intrate", "p8z9_totalcostratio", "p8z9_isrenewal", "p8z9_description", "p8z9_sumlevel", "p8z9_loanbillid"};
     }
 
 }
