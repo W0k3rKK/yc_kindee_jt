@@ -288,11 +288,51 @@ public class FinanceHelper {
         List<Long> ids = new ArrayList(10);
         Iterator var3 = loanBillDS.copy().iterator();
 
-        while(var3.hasNext()) {
-            Row row = (Row)var3.next();
+        while (var3.hasNext()) {
+            Row row = (Row) var3.next();
             ids.add(row.getLong(field));
         }
 
         return ids;
+    }
+
+    /**
+     * 构造一个通用的汇总 DataSet（不包含原始数据的 union 部分）
+     *
+     * @param dataSet    原始数据
+     * @param sumFields  需要汇总的字段
+     * @param fieldOrder 最终字段顺序，可为 null 表示按dataSet字段顺序排序
+     * @return 汇总后的 DataSet（字段补齐并排序）
+     */
+    public static DataSet buildSummaryDS(DataSet dataSet, List<String> sumFields, List<String> fieldOrder) {
+        // 第一步：对数据复制并进行 groupBy + sum 汇总
+        GroupbyDataSet totalSumGDS = dataSet.copy().groupBy();
+        for (String sumField : sumFields) {
+            totalSumGDS = totalSumGDS.sum(sumField);
+        }
+        DataSet sumDS = totalSumGDS.finish();
+
+        // 第二步：获取原数据的字段名（为补齐字段做准备）
+        String[] originalFieldNames = dataSet.getRowMeta().getFieldNames();
+        Set<String> sumResultFields = new HashSet<>(Arrays.asList(sumDS.getRowMeta().getFieldNames()));
+
+        // 第三步：补充 groupBy 后缺失的字段为 null 字段
+        List<String> nullFields = Arrays.stream(originalFieldNames)
+                .filter(f -> !sumResultFields.contains(f))
+                .collect(Collectors.toList());
+        if (!nullFields.isEmpty()) {
+            sumDS = sumDS.addNullField(nullFields.toArray(new String[0]));
+        }
+
+        // 第四步：根据指定顺序进行字段 select（否则保持原始顺序）
+        String[] selectFields;
+        if (fieldOrder != null && !fieldOrder.isEmpty()) {
+            selectFields = fieldOrder.toArray(new String[0]);
+        } else {
+            selectFields = dataSet.getRowMeta().getFieldNames();
+        }
+        sumDS = sumDS.select(selectFields);
+
+        return sumDS;
     }
 }

@@ -13,18 +13,21 @@ import kd.tmc.cfm.report.helper.ReportCommonHelper;
 import kd.tmc.cfm.report.helper.TradeFinanceFilterHelper;
 import kd.tmc.cfm.report.helper.TradeFinanceRptHelper;
 import kd.tmc.fbp.common.util.EmptyUtil;
+import p8z9.jtuat.tmc.cfm.plugin.report.util.FinanceHelper;
 
 import java.util.*;
 
 /**
- * 融资情况明细表
+ * 融资情况明细表（有息债务表）
  * 报表取数插件
+ * <p>
  *  利率、实际成本率四舍五入两位小数 ----
  *  融资成本-利息 考虑百分比（除以一百）----
  *  目前债券发行中，主要债权人分录没有行数未展示在报表中 ---
  *  债券发行类型，增加债券名称（取自债券发行同名字段），并把融资机构全部置为“其他” ---
  *  提款相关类型，增加合同号列 ---
  *  企业提款融资余额、利息、实际成本率未正确带出 ---
+ *  </p>
  */
 public class FinancingStatementDataListPlugin extends AbstractReportListDataPlugin implements Plugin {
 
@@ -62,7 +65,7 @@ public class FinancingStatementDataListPlugin extends AbstractReportListDataPlug
             // 根据数据源查询单据（含通用过滤条件
             dataSet = this.queryLoanBillDS(queryParam, paramMap);
             if (dataSet == null) {
-                return TradeFinanceFilterHelperExt.createEmptyDS();
+                return FinanceHelper.createEmptyDS();
             }
 
             dataSet = this.addSumRows(dataSet);
@@ -119,7 +122,7 @@ public class FinancingStatementDataListPlugin extends AbstractReportListDataPlug
                 .append(FIELD_KEY_OF_LOANBILL[12]).append(" AS ").append(FIELDS[12]).append(", ")
                 .append("id AS p8z9_loanbillid, ");
 
-        QFilter loanBillQFilter = TradeFinanceFilterHelperExt.loanBillQFilter(queryParam);
+        QFilter loanBillQFilter = FinanceHelper.loanBillQFilter(queryParam);
         // 查询截止日期
         // loanBillQFilter.and(new QFilter("bizdate", "<=", (Date) paramMap.get("p8z9_filter_cutoffdate")));
         QFilter elFilter = loanBillQFilter.copy();
@@ -174,14 +177,14 @@ public class FinancingStatementDataListPlugin extends AbstractReportListDataPlug
         // 单据id集合
         List<Long> loanBillIds = TradeFinanceFilterHelper.getloanBillIds(dataSet, "p8z9_loanbillid");
         // 融资余额（原币） 取时点的未还本金汇总
-        DataSet enotrePayAmtDS = TradeFinanceFilterHelperExt.enotrePayAmtDS(loanBillIds, cutoffdate, "p8z9_loanbillid", "p8z9_notrepayamt", this.getClass());
+        DataSet enotrePayAmtDS = FinanceHelper.enotrePayAmtDS(loanBillIds, cutoffdate, "p8z9_loanbillid", "p8z9_notrepayamt", this.getClass());
         dataSet = dataSet.leftJoin(enotrePayAmtDS).on("p8z9_loanbillid", "p8z9_loanbillid").select(dataSet.getRowMeta().getFieldNames(), new String[]{"p8z9_notrepayamt"}).finish();
 
         // 计算金额本位币、金额公式
         String curUnit = paramMap.get("p8z9_filter_currencyunit").toString();//货币单位
         Date cutoffDate = (Date) paramMap.get("p8z9_filter_cutoffdate");
         String curField = "p8z9_srccur";
-        DataSet RateDs = TradeFinanceFilterHelperExt.getExChangeRateDs(dataSet, curField, 1L, cutoffDate);
+        DataSet RateDs = FinanceHelper.getExChangeRateDs(dataSet, curField, 1L, cutoffDate);
         dataSet = dataSet.addNullField("p8z9_basenotrepayamt", "p8z9_costinterest", "p8z9_costrate");
         dataSet = dataSet.addField("'0'", "p8z9_sumlevel");
         // 连接后需查询的字段，查出汇率进行计算
