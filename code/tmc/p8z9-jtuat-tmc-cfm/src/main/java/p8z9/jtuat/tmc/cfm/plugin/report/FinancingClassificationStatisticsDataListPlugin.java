@@ -254,7 +254,8 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
 
         // 银行提款
         if (dataSource.contains("bankloan")) {
-            blQFilter.and("loantype", "=", LoanTypeEnum.BANKLOAN.getValue());
+            // 普通贷款、银团贷款
+            blQFilter.and("loantype", "in", Arrays.asList(LoanTypeEnum.BANKLOAN.getValue(), LoanTypeEnum.BANKSLOAN.getValue()));
             String yhtkSelectFields = this.getModelSelectFields("bankloan");
             loanBillDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "cfm_loanbill", yhtkSelectFields, blQFilter.toArray(), null);
             dataDSList.add(loanBillDS);

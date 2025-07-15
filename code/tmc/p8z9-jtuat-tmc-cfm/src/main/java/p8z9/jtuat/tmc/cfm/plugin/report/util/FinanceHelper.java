@@ -1,5 +1,6 @@
 package p8z9.jtuat.tmc.cfm.plugin.report.util;
 
+import cn.hutool.core.date.DateUtil;
 import kd.bos.algo.*;
 import kd.bos.context.RequestContext;
 import kd.bos.dataentity.entity.DynamicObject;
@@ -268,7 +269,7 @@ public class FinanceHelper {
     public static DataSet enotrePayAmtDS(List<Long> loanBillIds, Date cutoffDate, String field_billId, String field_Amt, Class clazz, String cp) {
         // 预计还款日期 exrepaymentdate   预计还本金 exdrawamount  未还本金 enotrepayamount
         QFilter billNoFilter = new QFilter("id", "in", loanBillIds);
-        QFilter cutOffDateFilter = new QFilter("repayplan_entry.exrepaymentdate", cp, cutoffDate);
+        QFilter cutOffDateFilter = new QFilter("repayplan_entry.exrepaymentdate", cp, DateUtil.offsetDay(cutoffDate, 1));//取截止日期后一天
         String selProps = new StringBuilder("id AS ").append(field_billId).append(", ")
                 // .append("repayplan_entry.enotrepayamount").toString();
                 .append("repayplan_entry.exdrawamount").toString();
