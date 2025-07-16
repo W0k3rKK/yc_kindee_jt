@@ -1,4 +1,4 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag;
+package p8z9.jtuat.tmc.cfm.webapi.dto.sealdragresult;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import p8z9.jtuat.tmc.cfm.webapi.dto.common.BaseResponse;
@@ -19,5 +19,12 @@ public class GetSealDragEffectUrlResponse extends BaseResponse {
 
     public void setData(String data) {
         this.data = data;
+    }
+
+    @Override
+    public String toString() {
+        return "GetSealDragEffectUrlResponse{" +
+                "data='" + data + '\'' +
+                '}';
     }
 }

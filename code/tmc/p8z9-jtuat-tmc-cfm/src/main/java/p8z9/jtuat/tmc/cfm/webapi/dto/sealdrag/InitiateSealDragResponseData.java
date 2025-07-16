@@ -1,9 +1,10 @@
 package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
-public class InitiateSealDragData {
+public class InitiateSealDragResponseData {
 
     @JsonProperty("taskId")
     private String taskId; // 拖拽会话的任务ID (注意：接口文档中为 "任务ID"，类型 String MAX(32)) [cite: 253]
@@ -21,4 +22,13 @@ public class InitiateSealDragData {
     public void setPointUrl(String pointUrl) { this.pointUrl = pointUrl; }
     public List<SealDragResponseFileItem> getFileList() { return fileList; }
     public void setFileList(List<SealDragResponseFileItem> fileList) { this.fileList = fileList; }
+
+    @Override
+    public String toString() {
+        return "InitiateSealDragData{" +
+                "taskId='" + taskId + '\'' +
+                ", pointUrl='" + pointUrl + '\'' +
+                ", fileList=" + fileList +
+                '}';
+    }
 }

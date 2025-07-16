@@ -1,4 +1,4 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.task;
+package p8z9.jtuat.tmc.cfm.webapi.dto.task.fileidlist;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -176,4 +176,25 @@ public class SealInfoDetails {
     public void setQifengPages(List<Integer> qifengPages) {
         this.qifengPages = qifengPages;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "SealInfoDetails{" +
+                "sealType=" + sealType +
+                ", sealId='" + sealId + '\'' +
+                ", sealName='" + sealName + '\'' +
+                ", isWaterMark=" + isWaterMark +
+                ", waterMarkText='" + waterMarkText + '\'' +
+                ", enterName='" + enterName + '\'' +
+                ", sealPosType=" + sealPosType +
+                ", keywordPos='" + keywordPos + '\'' +
+                ", keyword='" + keyword + '\'' +
+                ", keywordOffset=" + keywordOffset +
+                ", pageNum=" + pageNum +
+                ", posX=" + posX +
+                ", posY=" + posY +
+                ", sealDirection=" + sealDirection +
+                ", qifengPages=" + qifengPages +
+                '}';
+    }
+}

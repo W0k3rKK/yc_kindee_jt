@@ -20,4 +20,11 @@ public class LoginResponse extends BaseResponse {
     public void setData(String data) {
         this.data = data;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "LoginResponse{" +
+                "data='" + data + '\'' +
+                '}';
+    }
+}

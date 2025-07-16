@@ -54,4 +54,19 @@ public class DeviceInfo {
     public void setItUserIds(String itUserIds) { this.itUserIds = itUserIds; }
     public String getSealNames() { return sealNames; }
     public void setSealNames(String sealNames) { this.sealNames = sealNames; }
+
+    @Override
+    public String toString() {
+        return "DeviceInfo{" +
+                "devId='" + devId + '\'' +
+                ", devName='" + devName + '\'' +
+                ", devSn='" + devSn + '\'' +
+                ", isValid=" + isValid +
+                ", isTray3=" + isTray3 +
+                ", orgId='" + orgId + '\'' +
+                ", userIds='" + userIds + '\'' +
+                ", itUserIds='" + itUserIds + '\'' +
+                ", sealNames='" + sealNames + '\'' +
+                '}';
+    }
 }

@@ -1,6 +1,7 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag;
+package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag.fileid;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /**
@@ -9,7 +10,7 @@ import java.util.List;
  */
 public class InitiateSealDragRequest {
 
-    @JsonProperty("tradeNo")
+    @JsonProperty(value = "tradeNo", required = true)
     private String tradeNo; // 业务流水号，必填
 
     @JsonProperty("sealFiles")
@@ -18,17 +19,17 @@ public class InitiateSealDragRequest {
     @JsonProperty("callbackUrl")
     private String callbackUrl; // 回调地址，可选
 
-    @JsonProperty("taskType")
+    @JsonProperty(value = "taskType", required = true)
     private String taskType; // 任务类型，"01":打印用印, "05":回扫用印 [cite: 251]
 
-    @JsonProperty("devId")
+    @JsonProperty(value = "devId", required = true)
     private String devId;    // 设备编号 [cite: 251]
 
     @JsonProperty("sealNos")
     private String sealNos;  // 印章编号集合，逗号分隔 (可选) [cite: 251]
 
-    @JsonProperty("isCrossPageSeal")
-    private Integer isCrossPageSeal; // 是否拖拽骑缝章位置 (0否1是)，默认0 (可选) [cite: 251]
+    @JsonProperty(value = "isCrossPageSeal", required = true, defaultValue = "0")
+    private Integer isCrossPageSeal; // 是否拖拽骑缝章位置 (0否1是)，默认0，必填 [cite: 251]
 
     @JsonProperty("crossPageSealNos")
     private String crossPageSealNos; // 骑缝印章编号集合，逗号分隔 (可选) [cite: 251]
@@ -118,5 +119,21 @@ public class InitiateSealDragRequest {
 
     public void setReturnUrl(String returnUrl) {
         this.returnUrl = returnUrl;
+    }
+
+    @Override
+    public String toString() {
+        return "InitiateSealDragRequest{" +
+                "tradeNo='" + tradeNo + '\'' +
+                ", sealFiles=" + sealFiles +
+                ", callbackUrl='" + callbackUrl + '\'' +
+                ", taskType='" + taskType + '\'' +
+                ", devId='" + devId + '\'' +
+                ", sealNos='" + sealNos + '\'' +
+                ", isCrossPageSeal=" + isCrossPageSeal +
+                ", crossPageSealNos='" + crossPageSealNos + '\'' +
+                ", notifyUrl='" + notifyUrl + '\'' +
+                ", returnUrl='" + returnUrl + '\'' +
+                '}';
     }
 }

@@ -8,10 +8,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class LoginRequest {
 
-    @JsonProperty("userId")
+    @JsonProperty(value = "userId", required = true)
     private String userId; // 用户ID
 
-    @JsonProperty("passWord")
+    @JsonProperty(value = "passWord", required = true)
     private String passWord; // 密码(MD5加密)
 
     // Getters and Setters
@@ -30,4 +30,12 @@ public class LoginRequest {
     public void setPassWord(String passWord) {
         this.passWord = passWord;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "LoginRequest{" +
+                "userId='" + userId + '\'' +
+                ", passWord='" + passWord + '\'' +
+                '}';
+    }
+}

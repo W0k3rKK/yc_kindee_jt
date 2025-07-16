@@ -8,10 +8,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class SealEnableRequest {
 
-    @JsonProperty("sealId")
+    @JsonProperty(value = "sealId", required = true)
     private String sealId; // 印章ID
 
-    @JsonProperty("sealStatus")
+    @JsonProperty(value = "sealStatus", required = true)
     private Integer sealStatus; // 印章状态：0-停用，1-启用
 
     // Getters and Setters
@@ -30,4 +30,12 @@ public class SealEnableRequest {
     public void setSealStatus(Integer sealStatus) {
         this.sealStatus = sealStatus;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "SealEnableRequest{" +
+                "sealId='" + sealId + '\'' +
+                ", sealStatus=" + sealStatus +
+                '}';
+    }
+}

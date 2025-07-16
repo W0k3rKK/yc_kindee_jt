@@ -54,4 +54,19 @@ public class SealInfo {
     public void setIsBorrow(Integer isBorrow) { this.isBorrow = isBorrow; }
     public String getSealShowImg() { return sealShowImg; }
     public void setSealShowImg(String sealShowImg) { this.sealShowImg = sealShowImg; }
+
+    @Override
+    public String toString() {
+        return "SealInfo{" +
+                "sealNo='" + sealNo + '\'' +
+                ", sealStoreId=" + sealStoreId +
+                ", sealName='" + sealName + '\'' +
+                ", devId='" + devId + '\'' +
+                ", devName='" + devName + '\'' +
+                ", sealKind='" + sealKind + '\'' +
+                ", sealKindName='" + sealKindName + '\'' +
+                ", isBorrow=" + isBorrow +
+                ", sealShowImg='" + sealShowImg + '\'' +
+                '}';
+    }
 }

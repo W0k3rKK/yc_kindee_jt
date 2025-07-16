@@ -1,4 +1,4 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag;
+package p8z9.jtuat.tmc.cfm.webapi.dto.sealdragresult;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import p8z9.jtuat.tmc.cfm.webapi.dto.common.BaseResponse;
@@ -12,14 +12,21 @@ import java.util.List;
 public class GetSealDragDataResultResponse extends BaseResponse {
 
     @JsonProperty("data")
-    private List<SealDragResultDataItem> data; // 拖拽结果数据列表
+    private List<SealDragResultData> data; // 拖拽结果数据列表
 
     // Getters and Setters
-    public List<SealDragResultDataItem> getData() {
+    public List<SealDragResultData> getData() {
         return data;
     }
 
-    public void setData(List<SealDragResultDataItem> data) {
+    public void setData(List<SealDragResultData> data) {
         this.data = data;
+    }
+
+    @Override
+    public String toString() {
+        return "GetSealDragDataResultResponse{" +
+                "data=" + data +
+                '}';
     }
 }

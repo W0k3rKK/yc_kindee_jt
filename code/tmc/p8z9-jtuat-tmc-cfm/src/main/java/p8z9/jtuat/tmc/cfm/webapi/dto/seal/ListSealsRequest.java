@@ -46,4 +46,13 @@ public class ListSealsRequest {
     public void setOrgIds(String orgIds) {
         this.orgIds = orgIds;
     }
+
+    @Override
+    public String toString() {
+        return "ListSealsRequest{" +
+                "devId='" + devId + '\'' +
+                ", sealKind='" + sealKind + '\'' +
+                ", orgIds='" + orgIds + '\'' +
+                '}';
+    }
 }

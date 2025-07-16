@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
 import p8z9.jtuat.tmc.cfm.webapi.ApiClient;
+import p8z9.jtuat.tmc.cfm.webapi.dto.Code;
 import p8z9.jtuat.tmc.cfm.webapi.dto.device.ListDevicesRequest;
 import p8z9.jtuat.tmc.cfm.webapi.dto.device.ListDevicesResponse;
 import p8z9.jtuat.tmc.cfm.webapi.dto.seal.ListSealsRequest;
@@ -50,7 +51,7 @@ public class DeviceService {
         
         // 处理响应
         if (response != null) {
-            if (response.getCode() == 0) {
+            if (response.getCode() == Code.SUCCESS.getCode()) {
                 int deviceCount = (response.getData() != null) ? response.getData().size() : 0;
                 log.info("获取设备列表成功，共 {} 个设备", deviceCount);
             } else {
@@ -89,7 +90,7 @@ public class DeviceService {
         
         // 处理响应
         if (response != null) {
-            if (response.getCode() == 0) {
+            if (response.getCode() == Code.SUCCESS.getCode()) {
                 int sealCount = (response.getData() != null) ? response.getData().size() : 0;
                 log.info("获取印章列表成功，共 {} 个印章", sealCount);
             } else {

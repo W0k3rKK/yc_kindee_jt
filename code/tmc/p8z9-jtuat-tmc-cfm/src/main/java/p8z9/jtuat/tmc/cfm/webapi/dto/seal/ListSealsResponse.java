@@ -22,4 +22,11 @@ public class ListSealsResponse extends BaseResponse {
     public void setData(List<SealInfo> data) {
         this.data = data;
     }
+
+    @Override
+    public String toString() {
+        return "ListSealsResponse{" +
+                "data=" + data +
+                '}';
+    }
 }

@@ -24,4 +24,13 @@ public class SealDragResponseFileItem {
     public void setFileName(String fileName) { this.fileName = fileName; }
     public String getExtFileId() { return extFileId; }
     public void setExtFileId(String extFileId) { this.extFileId = extFileId; }
+
+    @Override
+    public String toString() {
+        return "SealDragResponseFileItem{" +
+                "fileId=" + fileId +
+                ", fileName='" + fileName + '\'' +
+                ", extFileId='" + extFileId + '\'' +
+                '}';
+    }
 }

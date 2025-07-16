@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
 import p8z9.jtuat.tmc.cfm.webapi.ApiClient;
+import p8z9.jtuat.tmc.cfm.webapi.dto.Code;
 import p8z9.jtuat.tmc.cfm.webapi.dto.common.BaseResponse;
 import p8z9.jtuat.tmc.cfm.webapi.dto.seal.SealEnableRequest;
 import p8z9.jtuat.tmc.cfm.webapi.exception.ApiException;
@@ -55,7 +56,7 @@ public class SealService {
         
         // 处理响应
         if (response != null) {
-            if (response.getCode() == 0) {
+            if (response.getCode() == Code.SUCCESS.getCode()) {
                 log.info("{}印章成功，印章ID: {}", statusDesc, request.getSealId());
             } else {
                 log.error("{}印章失败: code={}, message={}", statusDesc, response.getCode(), response.getMessage());

@@ -22,4 +22,11 @@ public class ListDevicesResponse extends BaseResponse {
     public void setData(List<DeviceInfo> data) {
         this.data = data;
     }
+
+    @Override
+    public String toString() {
+        return "ListDevicesResponse{" +
+                "data=" + data +
+                '}';
+    }
 }

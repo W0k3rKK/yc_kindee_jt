@@ -1,4 +1,4 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag;
+package p8z9.jtuat.tmc.cfm.webapi.dto.sealdragresult;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -74,4 +74,16 @@ public class SealDragPositionInfo {
     public void setSealDirection(Integer sealDirection) {
         this.sealDirection = sealDirection;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "SealDragPositionInfo{" +
+                "sealId='" + sealId + '\'' +
+                ", sealName='" + sealName + '\'' +
+                ", pageNum=" + pageNum +
+                ", posX=" + posX +
+                ", posY=" + posY +
+                ", sealDirection=" + sealDirection +
+                '}';
+    }
+}

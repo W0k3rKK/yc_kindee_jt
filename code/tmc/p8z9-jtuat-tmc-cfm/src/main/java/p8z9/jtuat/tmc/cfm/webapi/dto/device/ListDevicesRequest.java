@@ -35,4 +35,12 @@ public class ListDevicesRequest {
     public void setIsValid(Integer isValid) {
         this.isValid = isValid;
     }
+
+    @Override
+    public String toString() {
+        return "ListDevicesRequest{" +
+                "orgIds='" + orgIds + '\'' +
+                ", isValid=" + isValid +
+                '}';
+    }
 }

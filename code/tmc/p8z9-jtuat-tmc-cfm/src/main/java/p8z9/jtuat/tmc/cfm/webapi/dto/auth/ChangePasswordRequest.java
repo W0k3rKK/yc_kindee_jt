@@ -8,16 +8,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class ChangePasswordRequest {
 
-    @JsonProperty("userId")
+    @JsonProperty(value = "userId", required = true)
     private String userId; // 用户ID
 
-    @JsonProperty("oldPassWord")
+    @JsonProperty(value = "oldPassWord", required = true)
     private String oldPassWord; // 原密码(MD5加密)
 
-    @JsonProperty("newPassWord")
+    @JsonProperty(value = "newPassWord", required = true)
     private String newPassWord; // 新密码(MD5加密)
 
-    @JsonProperty("confirmPassWord")
+    @JsonProperty(value = "confirmPassWord", required = true)
     private String confirmPassWord; // 确认新密码(MD5加密)
 
     // Getters and Setters
@@ -52,4 +52,14 @@ public class ChangePasswordRequest {
     public void setConfirmPassWord(String confirmPassWord) {
         this.confirmPassWord = confirmPassWord;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "ChangePasswordRequest{" +
+                "userId='" + userId + '\'' +
+                ", oldPassWord='" + oldPassWord + '\'' +
+                ", newPassWord='" + newPassWord + '\'' +
+                ", confirmPassWord='" + confirmPassWord + '\'' +
+                '}';
+    }
+}

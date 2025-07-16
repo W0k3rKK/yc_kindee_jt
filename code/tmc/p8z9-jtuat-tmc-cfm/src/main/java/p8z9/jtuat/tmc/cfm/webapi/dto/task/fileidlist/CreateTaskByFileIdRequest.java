@@ -1,25 +1,26 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.task;
+package p8z9.jtuat.tmc.cfm.webapi.dto.task.fileidlist;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * 创建任务（文件ID模式）的单个任务请求 DTO
+ * 对应接口规范 2.3.2 任务创建(文件 ID)_列表的输入参数
  * 整个请求将是 List<CreateTaskByFileIdRequest>
- * 
+ * <p>
  * 根据印控系统对接指引，创建任务前必须确保用印人已通过用户同步接口添加到系统中
  */
 public class CreateTaskByFileIdRequest {
 
-    @JsonProperty("tradeNo")
+    @JsonProperty(value = "tradeNo", required = true)
     private String tradeNo; // 业务流水号，必填
 
-    @JsonProperty("tradeTitle")
+    @JsonProperty(value = "tradeTitle", required = true)
     private String tradeTitle; // 业务标题，必填
 
-    @JsonProperty("extFileId")
+    @JsonProperty(value = "extFileId", required = true)
     private String extFileId; // 外围系统的文件ID或文件下载地址，必填
 
-    @JsonProperty("fileName")
+    @JsonProperty(value = "fileName", required = true)
     private String fileName; // 文件名称，必填
 
     @JsonProperty("taskType")
@@ -141,5 +142,23 @@ public class CreateTaskByFileIdRequest {
 
     public void setSealInfo(SealInfoDetails sealInfo) {
         this.sealInfo = sealInfo;
+    }
+
+    @Override
+    public String toString() {
+        return "CreateTaskByFileIdRequest{" +
+                "tradeNo='" + tradeNo + '\'' +
+                ", tradeTitle='" + tradeTitle + '\'' +
+                ", extFileId='" + extFileId + '\'' +
+                ", fileName='" + fileName + '\'' +
+                ", taskType='" + taskType + '\'' +
+                ", devId='" + devId + '\'' +
+                ", copies=" + copies +
+                ", userId='" + userId + '\'' +
+                ", createUser='" + createUser + '\'' +
+                ", isConfirm=" + isConfirm +
+                ", notifyUrl='" + notifyUrl + '\'' +
+                ", sealInfo=" + sealInfo +
+                '}';
     }
 }

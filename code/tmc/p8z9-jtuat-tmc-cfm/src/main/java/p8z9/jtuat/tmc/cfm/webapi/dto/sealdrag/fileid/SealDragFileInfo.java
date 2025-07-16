@@ -1,4 +1,4 @@
-package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag;
+package p8z9.jtuat.tmc.cfm.webapi.dto.sealdrag.fileid;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -8,10 +8,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class SealDragFileInfo {
 
-    @JsonProperty("extFileId")
+    @JsonProperty(value = "extFileId", required = true)
     private String extFileId; // 外围系统的文件ID或文件下载地址
 
-    @JsonProperty("fileName")
+    @JsonProperty(value = "fileName", required = true)
     private String fileName; // 文件名称
 
     // Getters and Setters
@@ -30,4 +30,12 @@ public class SealDragFileInfo {
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "SealDragFileInfo{" +
+                "extFileId='" + extFileId + '\'' +
+                ", fileName='" + fileName + '\'' +
+                '}';
+    }
+}
