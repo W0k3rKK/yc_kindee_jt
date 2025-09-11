@@ -20,6 +20,7 @@ import kd.tmc.fbp.common.helper.TmcOrgDataHelper;
 import kd.tmc.fbp.common.util.DateUtils;
 import kd.tmc.fbp.common.util.EmptyUtil;
 import kd.tmc.fbp.report.data.AbstractTmcTreeReportDataPlugin;
+import scala.annotation.meta.field;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -55,15 +56,17 @@ public class FinanceHelper {
     public static QFilter loanBillQFilter(Map<String, Object> paramMap, List<Long> orgIds) {
         QFilter qFilter = new QFilter("billstatus", "=", BillStatusEnum.AUDIT.getValue());
         qFilter.and(new QFilter("confirmstatus", "=", ConfirmStatusEnum.YETCONFIRM.getValue()));
+        Boolean includeClose = (Boolean) paramMap.get("filter_includecloseout");
+        if (!includeClose) {
+            QFilter noCloseOffDate = new QFilter("closeoffdate", "=", (Object) null);
+            Date cutOffDate = (Date) paramMap.get("p8z9_filter_cutoffdate");
+            QFilter lessThanCutOffDate = (new QFilter("closeoffdate", "<=", cutOffDate)).and(new QFilter("drawtype", "!=", DrawTypeEnum.CLOSEOUT.getValue())).and(new QFilter("notrepayamount", ">", BigDecimal.ZERO));
+            QFilter largeThanCutOffDate = new QFilter("closeoffdate", ">", cutOffDate);
+            qFilter.and(lessThanCutOffDate.or(largeThanCutOffDate).or(noCloseOffDate));
+        }
         if (orgIds != null && !orgIds.isEmpty()) {
             qFilter.and(new QFilter("org.id", "in", orgIds));
         }
-
-        QFilter noCloseOffDate = new QFilter("closeoffdate", "=", (Object) null);
-        Date cutOffDate = (Date) paramMap.get("p8z9_filter_cutoffdate");
-        QFilter lessThanCutOffDate = (new QFilter("closeoffdate", "<=", cutOffDate)).and(new QFilter("drawtype", "!=", DrawTypeEnum.CLOSEOUT.getValue())).and(new QFilter("notrepayamount", ">", BigDecimal.ZERO));
-        QFilter largeThanCutOffDate = new QFilter("closeoffdate", ">", cutOffDate);
-        qFilter.and(lessThanCutOffDate.or(largeThanCutOffDate).or(noCloseOffDate));
 
         qFilter.and(initBizdateFitler(paramMap));
         qFilter.and(initOrgFilter(paramMap));
@@ -194,11 +197,11 @@ public class FinanceHelper {
 
 
     /**
-     * @param srcDs
-     * @param currencyField
-     * @param tarCurId
-     * @param date
-     * @return
+     * @param srcDs 源数据集
+     * @param currencyField 源数据集的币种字段
+     * @param tarCurId 目标币种id
+     * @param date 汇率日期
+     * @return 汇率数据集，包含tarcurrency、rate
      * @see AbstractTmcTreeReportDataPlugin#getExChangeRateDs(DataSet, Map)
      */
     public static DataSet getExChangeRateDs(DataSet srcDs, String currencyField, Long tarCurId, Date date) {
@@ -223,7 +226,7 @@ public class FinanceHelper {
             throw new KDException("未找到汇率表：" + exchangeTableNum);
         }
         return BaseDataServiceHelper.getExchangeRate(exchangeTable.getLong("id"),
-                srcCur.getLong("id"), 1L, ExcDate);//人民币默认id为1
+                srcCur.getLong("id"), 1L, ExcDate);// 人民币默认id为1
 
     }
 
@@ -256,7 +259,7 @@ public class FinanceHelper {
     }
 
     /**
-     * 根据传入时点计算未还本金汇总
+     * 根据传入时点计算预计还本金汇总
      *
      * @param loanBillIds  提款单id
      * @param cutoffDate   时点日期
@@ -269,13 +272,32 @@ public class FinanceHelper {
     public static DataSet enotrePayAmtDS(List<Long> loanBillIds, Date cutoffDate, String field_billId, String field_Amt, Class clazz, String cp) {
         // 预计还款日期 exrepaymentdate   预计还本金 exdrawamount  未还本金 enotrepayamount
         QFilter billNoFilter = new QFilter("id", "in", loanBillIds);
-        QFilter cutOffDateFilter = new QFilter("repayplan_entry.exrepaymentdate", cp, DateUtil.offsetDay(cutoffDate, 1));//取截止日期后一天
+        QFilter cutOffDateFilter = new QFilter("repayplan_entry.exrepaymentdate", cp, DateUtil.offsetDay(cutoffDate, 1));// 取截止日期后一天
         String selProps = new StringBuilder("id AS ").append(field_billId).append(", ")
                 // .append("repayplan_entry.enotrepayamount").toString();
                 .append("repayplan_entry.exdrawamount").toString();
         DataSet enotrePayAmtDS = QueryServiceHelper.queryDataSet(clazz.getName(), "cfm_loanbill", selProps, new QFilter[]{billNoFilter, cutOffDateFilter}, "id");
         DataSet amtSumDS = enotrePayAmtDS.copy().groupBy(new String[]{field_billId}).sum("repayplan_entry.exdrawamount", field_Amt).finish();
         return amtSumDS;
+    }
+
+    /**
+     *
+     * @param loanBillIds
+     * @param cutoffDate
+     * @param clazz
+     * @return
+     */
+    public static DataSet calNotrePayAmtDS(List<Long> loanBillIds, Date cutoffDate, Class clazz) {
+        QFilter billIdFilter = new QFilter("id", "in", loanBillIds);
+        String selProps = "id AS loanbillid, " + "billno, " + "repayplan_entry.exrepaymentdate as exrepaymentdate, " + "repayplan_entry.erepayamount";
+        DataSet dataSet = QueryServiceHelper.queryDataSet(clazz.getName(), "cfm_loanbill", selProps, billIdFilter.toArray(), "id");
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("param1", DateUtil.offsetDay(cutoffDate, 1));
+        DataSet paidAmtDS = dataSet.copy().filter("exrepaymentdate < param1", paramMap).groupBy(new String[] { "loanbillid", "billno" }).sum("repayplan_entry.erepayamount", "paidamt").finish();
+        DataSet drawAmtDS = QueryServiceHelper.queryDataSet(clazz.getName(), "cfm_loanbill", "id, billno, drawamount", new QFilter[] { billIdFilter }, null);
+        DataSet finalDS = drawAmtDS.leftJoin(paidAmtDS).on("id", "loanbillid").select(new String[] { "id", "billno", "paidamt", "drawamount" }).finish().updateField("paidamt", "CASE WHEN paidamt=NULL then 0 ELSE paidamt END").addField("drawamount-paidamt", "unpaidamt");
+        return finalDS;
     }
 
     public static DataSet createEmptyDS() {
@@ -285,7 +307,7 @@ public class FinanceHelper {
     }
 
 
-    public static List<Long> getloanBillIds(DataSet loanBillDS, String field) {
+    public static List<Long> getLoanBillIds(DataSet loanBillDS, String field) {
         List<Long> ids = new ArrayList(10);
         Iterator var3 = loanBillDS.copy().iterator();
 
@@ -294,6 +316,16 @@ public class FinanceHelper {
             ids.add(row.getLong(field));
         }
 
+        return ids;
+    }
+
+    public static List<Object> getFieldFromDS(DataSet loanBillDS, String field) {
+        List<Object> ids = new ArrayList(10);
+        Iterator<Row> var3 = loanBillDS.copy().iterator();
+        while (var3.hasNext()) {
+            Row row = var3.next();
+            ids.add(row.get(field));
+        }
         return ids;
     }
 

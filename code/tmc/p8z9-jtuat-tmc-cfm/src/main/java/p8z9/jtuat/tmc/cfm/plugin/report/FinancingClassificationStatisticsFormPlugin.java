@@ -25,13 +25,13 @@ public class FinancingClassificationStatisticsFormPlugin extends AbstractReportF
         ReportList listTable = this.getView().getControl("reportlistap");
         switch (value_dimension) {
             case "financing_model":
-                fields = new String[]{"融资模式", "本位币", "融资余额（本位币）", "平均利率成本", "占比", "本金（本位币）", "利息（本位币）", "合计排序"};
+                fields = new String[]{"融资模式", "本位币", "融入金额（原币）", "融入金额（本位币）", "平均利率成本%", "占比%", "本金（本位币）", "利息（本位币）", "合计排序"};
                 break;
             case "financing_subject":
-                fields = new String[]{"融资主体", "本位币", "融资余额（本位币）", "平均利率成本", "占比", "本金（本位币）", "利息（本位币）", "合计排序"};
+                fields = new String[]{"融资主体", "本位币", "融入金额（原币）", "融入金额（本位币）", "平均利率成本%", "占比%", "本金（本位币）", "利息（本位币）", "合计排序"};
                 break;
             case "credit_method":
-                fields = new String[]{"担保方式", "本位币", "融资余额（本位币）", "占比", "合计排序"};
+                fields = new String[]{"担保方式", "本位币", "融入金额（原币）", "融入金额（本位币）", "占比%", "合计排序"};
                 break;
         }
         ReportCommonHelper.rebuildColumn(fields, listTable);
@@ -62,14 +62,12 @@ public class FinancingClassificationStatisticsFormPlugin extends AbstractReportF
             boolean nonZeroTotal = totalBaseAmt.compareTo(BigDecimal.ZERO) != 0;
 
             for (DynamicObject dy : dc) {
-                int sumLevel = dy.getInt("p8z9_sumlevel");
-                if (sumLevel != 2 && sumLevel != 1) { // 非合计行
-                    BigDecimal baseAmt = dy.getBigDecimal("p8z9_baseamt");
-                    BigDecimal percentage = nonZeroTotal
-                            ? baseAmt.divide(totalBaseAmt, 10, RoundingMode.HALF_UP)
-                            : BigDecimal.ZERO;
-                    dy.set("p8z9_percentage", percentage);
-                }
+                // int sumLevel = dy.getInt("p8z9_sumlevel");
+                // if (sumLevel != 2 && sumLevel != 1) { // 非合计行
+                BigDecimal baseAmt = dy.getBigDecimal("p8z9_baseamt");
+                BigDecimal percentage = nonZeroTotal ? baseAmt.divide(totalBaseAmt, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")) : BigDecimal.ZERO;
+                dy.set("p8z9_percentage", percentage);
+                // }
             }
         }
     }
