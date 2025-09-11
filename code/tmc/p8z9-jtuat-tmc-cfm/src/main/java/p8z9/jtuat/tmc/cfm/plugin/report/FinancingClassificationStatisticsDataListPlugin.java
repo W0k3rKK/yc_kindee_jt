@@ -16,7 +16,6 @@ import kd.tmc.cfm.common.enums.LoanTypeEnum;
 import kd.tmc.cfm.report.helper.ReportCommonHelper;
 import kd.tmc.cfm.report.helper.TradeFinanceFilterHelper;
 import kd.tmc.cfm.report.helper.TradeFinanceRptHelper;
-import kd.tmc.fbp.common.enums.BillStatusEnum;
 import kd.tmc.fbp.common.util.EmptyUtil;
 import p8z9.jtuat.tmc.cfm.plugin.report.util.FinanceHelper;
 
@@ -42,11 +41,14 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
     private Date cutoffdate;
     // 统计维度
     private String value_dimension;
+
+    private ReportQueryParam queryParam;
     // 报表过滤条件
     private Map<String, Object> paramMap;
 
     private void initParam(ReportQueryParam queryParam) {
         this.paramMap = ReportCommonHelper.transQueryParam(queryParam);
+        this.queryParam = queryParam;
         this.cutoffdate = (Date) this.paramMap.get("p8z9_filter_cutoffdate");
         this.value_dimension = (String) this.paramMap.get("p8z9_filter_dimension");
     }
@@ -58,13 +60,13 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
 
         // 根据不同统计维度，进行不同数据查询及组装
         DataSet dataSet = null;
-        List<String> sumFields;
         try {
-
+            List<String> sumFields;
+            DataSet DS;
+            String groupByField;
             switch (value_dimension) {
                 case "financing_model":
                 case "financing_subject":
-                    String groupByField;
                     if ("financing_model".equals(value_dimension)) {
                         // 融资模式
                         // 根据融资模式（融资品种一级级次）进行分组并汇总金额
@@ -75,21 +77,21 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
                         groupByField = "p8z9_org";
                     }
                     // 获取进行初步处理包含基础字段数据
-                    DataSet DS = this.getModelDs(queryParam);
+                    DS = this.getModelDs(queryParam);
                     // 按维度小计
                     dataSet = DS.copy().groupBy(new String[]{groupByField})
+                            .sum("p8z9_amt")
                             .sum("p8z9_baseamt")// 融资余额（本位币）汇总
                             .sum("p8z9_baseprincipal")// 本金（本位币）汇总
                             .sum("p8z9_baseinterest")// 利息（本位币）汇总
                             .finish();
                     dataSet = dataSet.addField("1", "p8z9_basecur");// 本位币赋值
                     dataSet = dataSet.addField("'0'", "p8z9_sumlevel");// 合计排序
-                    dataSet = dataSet.addField("CASE WHEN p8z9_baseprincipal <> 0 AND p8z9_baseprincipal IS NOT NULL THEN p8z9_baseinterest/p8z9_baseprincipal ELSE 0 END", "p8z9_avg_interestrate");//平均利率成本 = 利息（本位币） / 本金（本位币）
-
                     // 需要合计字段
-                    sumFields = new ArrayList<>(Arrays.asList("p8z9_baseamt", "p8z9_baseprincipal", "p8z9_baseinterest"));
+                    sumFields = new ArrayList<>(Arrays.asList("p8z9_amt", "p8z9_baseamt", "p8z9_baseprincipal", "p8z9_baseinterest"));
                     // 融资模式、融资主体合计行
                     dataSet = this.addSumRow(dataSet, sumFields);
+                    dataSet = dataSet.addField("CASE WHEN p8z9_baseprincipal <> 0 AND p8z9_baseprincipal IS NOT NULL THEN p8z9_baseinterest/p8z9_baseprincipal*100 ELSE 0 END", "p8z9_avg_interestrate");// 平均利率成本 = 利息（本位币） / 本金（本位币）
 
                     break;
                 case "credit_method":
@@ -99,7 +101,7 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
                     dataSet = dataSet.addField("'0'", "p8z9_sumlevel");// 合计排序
 
                     // 需要合计字段
-                    sumFields = new ArrayList<>(Arrays.asList("p8z9_baseamt"));
+                    sumFields = new ArrayList<>(Arrays.asList("p8z9_amt", "p8z9_baseamt"));
                     // 增信方式合计行
                     dataSet = this.addSumRow(dataSet, sumFields);
                     break;
@@ -125,49 +127,106 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
         DataSet methodDS = this.queryMethodDS();
 
         // 处理金额等数据
-        methodDS = this.calMethod(methodDS);
+        // methodDS = this.calMethod(methodDS);
         methodDS = methodDS.addField("'1'", "p8z9_basecur");// 本位币
 
         return methodDS;
     }
 
     private DataSet queryMethodDS() {
-        QFilter billStatusQ = new QFilter("gcontract.billstatus", "=", BillStatusEnum.AUDIT.getValue());// 担保合同.单据状态 = 已审核
-        QFilter bizStatusQ = new QFilter("gcontract.bizstatus", "=", "doing");// 担保合同.业务状态 = 执行中
-        QFilter startDateQ = new QFilter("gcontract.bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate));// 起始日期大于等于本年
-        QFilter endDateQ = new QFilter("gcontract.bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate));// 起始日期大于等于本年
-        String selFields = "gdebtcurrency, gdebtbalance, gcontract.guaranteevarieties.name AS p8z9_guarantee";
-        List<DataSet> dataSetList = new ArrayList<>();
+        QFilter loanBillQFilter = FinanceHelper.loanBillQFilter(this.queryParam);
+        String dataSource = (String) this.paramMap.get("p8z9_filter_datasource");
+        String curUnit = this.paramMap.get("p8z9_filter_currencyunit").toString();
+        List<String> dataSourceList = new ArrayList<>();
+        if (dataSource.contains("bankloan")) {
+            dataSourceList.add("loan");
+            dataSourceList.add("sl");
+        }
+        if (dataSource.contains("entrustloan")) {
+            dataSourceList.add("entrust");
+            dataSourceList.add("ec");
+        }
+        if (dataSource.contains("bond")) {
+            dataSourceList.add("bond");
+        }
+        if (dataSourceList.size() > 0) {
+            loanBillQFilter.and("loantype", "in", dataSourceList);
+        }
 
-        // 将包含保证的担保品种都归为 保证
-        DataSet ensureDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "gm_guaranteeuse", selFields,
-                new QFilter[]{bizStatusQ, billStatusQ, startDateQ, endDateQ, new QFilter("gcontract.guaranteevarieties.name", "like", "保证%")}, null);
-        ensureDS = ensureDS.updateField("p8z9_guarantee", "'保证'");
-        dataSetList.add(ensureDS);
+        // 本年初
+        loanBillQFilter.and(new QFilter("bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate)));
 
-        // 其余担保品种
-        DataSet otherDS = QueryServiceHelper.queryDataSet(this.getClass().getName(), "gm_guaranteeuse", selFields,
-                new QFilter[]{bizStatusQ, billStatusQ, startDateQ, endDateQ, new QFilter("gcontract.guaranteevarieties.name", "not like", "保证%")}, null);
-        dataSetList.add(otherDS);
+        List<Long> ids = new ArrayList<>();
+        List<DataSet> dataSets = new ArrayList<>();
+        // 通用sql查询字段
+        String commonSelProps = "id,billno,bizdate,currency,drawamount,loancontractbill.guarantee AS guarantee";
 
-        DataSet methodDS = EmptyUtil.isEmpty(dataSetList) ? null : dataSetList.stream().reduce(DataSet::union).get();
+        /**
+         * <p>虽然系统上在借款合同的担保方式可多选，但在业务上借款合同不会存在担保方式只有“抵押”和“质押“的情况，如果多选一定会包含保证</p>
+         * <p>所以分两种情况处理：1、担保方式多选归类为“保证”。2、担保方式单选按本身。</p>
+         * <p>另外，借款合同的担保方式选了什么，关联的提款处理只能关联相应担保方式的担保合同，即如借款合同只选了“抵押“，则提款处理只能关联“抵押”的担保合同。</p>
+         * <p>目前担保方式为“其他”也归类为保证</p>
+         * <p>如果是抵押或质押的情况，可能单行比例或多行相加不等于百分百。那就把多行进行比例相加，如果比例>100%则取100%如果<=100%则按相加结果计算</p>
+         */
+        // ---1)担保方式包含'保证'(可能不止有'保证'),或为'其他'
+        QFilter ensureFilter = (new QFilter("loancontractbill.guarantee", "like", "%2%")).or(new QFilter("loancontractbill.guarantee", "like", "%6%"));
+        DataSet ensureDs = QueryServiceHelper.queryDataSet(getClass().getName(), "cfm_loanbill", commonSelProps, new QFilter[]{loanBillQFilter, ensureFilter}, null);
+        List<Long> ensureIds = FinanceHelper.getLoanBillIds(ensureDs, "id");
+        logger.info("ensureIds: {}", ensureIds);
+        ids.addAll(ensureIds);
+        ensureDs = ensureDs.addField("'2'", "guaranteeway")
+                .addField("drawamount", "p8z9_amt");
+        dataSets.add(ensureDs);
+        String[] fields = ensureDs.getRowMeta().getFieldNames();
 
-        return methodDS;
-    }
+        // 由于担保方式为 2)抵押 或 3)质押，归类为本身，所以不用计算担保比例
 
-    private DataSet calMethod(DataSet methodDS) {
-        // 计算金额本位币、金额公式
-        String curUnit = paramMap.get("p8z9_filter_currencyunit").toString();// 货币单位
-        String curField = "gdebtcurrency";
-        DataSet rateDs = FinanceHelper.getExChangeRateDs(methodDS, curField, 1L, this.cutoffdate);// 汇率
-        List<String> joinSelPropList = new ArrayList<>();
-        Collections.addAll(joinSelPropList, methodDS.getRowMeta().getFieldNames());
-        joinSelPropList.add("tarcurrency");
-        joinSelPropList.add("rate");
-        methodDS = methodDS.leftJoin(rateDs).on(curField, "tarcurrency").select(methodDS.getRowMeta().getFieldNames(), new String[]{"rate"}).finish();
-        methodDS = methodDS.addField("gdebtbalance * rate / " + curUnit, "p8z9_baseamt");
-        methodDS = methodDS.groupBy(new String[]{"p8z9_guarantee"}).sum("p8z9_baseamt").finish();
+        // ---2)担保方式为'抵押'
+        QFilter mortgageFilter = new QFilter("loancontractbill.guarantee", "=", ",4,");
+        DataSet mortgageDs = QueryServiceHelper.queryDataSet(getClass().getName(), "cfm_loanbill", commonSelProps, new QFilter[]{loanBillQFilter, mortgageFilter}, null);
+        // logger.info(FinanceHelper.print("init mortgageDs", mortgageDs, true));
+        List<Long> mortgageIds = FinanceHelper.getLoanBillIds(mortgageDs, "id");
+        logger.info("mortgageIds: {}", mortgageIds);
+        ids.addAll(mortgageIds);
+        /*DataSet mortgageGDs = queryGContractDs(mortgageIds).groupBy(new String[]{"gsrcbillno", "gsrcbillid", "guaranteeway"}).sum("gratio").finish().updateField("gratio", "CASE WHEN gratio>100 THEN 100 ELSE gratio END");
+        mortgageDs = mortgageDs.leftJoin(mortgageGDs).on("id", "gsrcbillid")
+                .select(mortgageDs.getRowMeta().getFieldNames(), new String[]{"gratio"}).finish()
+                .addField("drawamount*gratio/100", "p8z9_amt")
+                .addField("'4'", "guaranteeway").select(fields);*/
+        mortgageDs = mortgageDs.addField("'4'", "guaranteeway")
+                .addField("drawamount", "p8z9_amt");
+        dataSets.add(mortgageDs);
 
+        // ---3)担保方式为'质押'
+        QFilter pledgeFilter = new QFilter("loancontractbill.guarantee", "=", ",5,");
+        DataSet pledgeDs = QueryServiceHelper.queryDataSet(getClass().getName(), "cfm_loanbill", commonSelProps, new QFilter[]{loanBillQFilter, pledgeFilter}, null);
+        // logger.info(FinanceHelper.print("init pledgeDs", pledgeDs, true));
+        List<Long> pledgeIds = FinanceHelper.getLoanBillIds(pledgeDs, "id");
+        logger.info("pledgeIds: {}", pledgeIds);
+        ids.addAll(pledgeIds);
+        /*DataSet pledgeGDs = queryGContractDs(pledgeIds).groupBy(new String[]{"gsrcbillno", "gsrcbillid", "guaranteeway"}).sum("gratio").finish().updateField("gratio", "CASE WHEN gratio>100 THEN 100 ELSE gratio END");
+        pledgeDs = pledgeDs.leftJoin(pledgeGDs).on("id", "gsrcbillid")
+                .select(pledgeDs.getRowMeta().getFieldNames(), new String[]{"gratio"}).finish()
+                .addField("drawamount*gratio/100", "p8z9_amt")
+                .addField("'5'", "guaranteeway").select(fields);*/
+        pledgeDs = pledgeDs.addField("'5'", "guaranteeway")
+                .addField("drawamount", "p8z9_amt");
+        dataSets.add(pledgeDs);
+
+        // ---4)担保方式为'信用'
+        QFilter creditFilter = new QFilter("loancontractbill.guarantee", "like", "%7%");
+        DataSet creditDs = QueryServiceHelper.queryDataSet(getClass().getName(), "cfm_loanbill", commonSelProps, new QFilter[]{loanBillQFilter, creditFilter}, null);
+        List<Long> creditIds = FinanceHelper.getLoanBillIds(creditDs, "id");
+        logger.info("creditIds: {}", creditIds);
+        ids.addAll(creditIds);
+        creditDs = creditDs.addField("'7'", "guaranteeway").addField("drawamount", "p8z9_amt");
+        dataSets.add(creditDs);
+
+        DataSet methodDS = EmptyUtil.isEmpty(dataSets) ? null : dataSets.stream().reduce(DataSet::union).get();
+        DataSet rateDs = FinanceHelper.getExChangeRateDs(methodDS, "currency", Long.valueOf(1L), this.cutoffdate);
+        methodDS = methodDS.leftJoin(rateDs).on("currency", "tarcurrency").select(methodDS.getRowMeta().getFieldNames(), new String[]{"rate"}).finish().updateField("p8z9_amt", "p8z9_amt/" + curUnit).addField("p8z9_amt*rate", "p8z9_baseamt").addField("guaranteeway", "p8z9_guarantee");
+        methodDS = methodDS.groupBy(new String[]{"guaranteeway"}).sum("p8z9_amt").sum("p8z9_baseamt").finish();
+        methodDS = methodDS.select("guaranteeway AS p8z9_guarantee,p8z9_amt,p8z9_baseamt");
         return methodDS;
     }
 
@@ -195,28 +254,27 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
     private DataSet calModelAmt(DataSet modelDS) {
 
         // 单据id集合 年度
-        List<Long> yearModelLoanBillIds = TradeFinanceFilterHelper.getloanBillIds(modelDS, "loanbillid");
+        // List<Long> yearModelLoanBillIds = TradeFinanceFilterHelper.getloanBillIds(modelDS, "loanbillid");
         // 本金（原币） 取时点的未还本金汇总，年度
-        DataSet yearPayAmtDS = FinanceHelper.enotrePayAmtDS(yearModelLoanBillIds, this.cutoffdate, "loanbillid", "p8z9_amt", this.getClass());
+        // DataSet yearPayAmtDS = FinanceHelper.enotrePayAmtDS(yearModelLoanBillIds, this.cutoffdate, "loanbillid", "p8z9_amt", this.getClass());
         // 将本金（原币）join进主DataSet
-        modelDS = modelDS.join(yearPayAmtDS).on("loanbillid", "loanbillid").select(modelDS.getRowMeta().getFieldNames(), new String[]{"p8z9_amt"}).finish();
+        // modelDS = modelDS.join(yearPayAmtDS).on("loanbillid", "loanbillid").select(modelDS.getRowMeta().getFieldNames(), new String[]{"p8z9_amt"}).finish();
 
         // 计算金额本位币、金额公式
         String curUnit = paramMap.get("p8z9_filter_currencyunit").toString();// 货币单位
         String curField = "p8z9_srccur";
         DataSet rateDs = FinanceHelper.getExChangeRateDs(modelDS, curField, 1L, this.cutoffdate);
         modelDS = modelDS.join(rateDs).on("p8z9_srccur", "tarcurrency").select(modelDS.getRowMeta().getFieldNames(), new String[]{"rate"}).finish();
-        modelDS = modelDS.addField("p8z9_amt * rate / " + curUnit, "p8z9_baseamt");//融资余额（本位币）
-        modelDS = modelDS.addField("p8z9_baseamt", "p8z9_baseprincipal");//本金（本位币） 目前等于融资余额（本位币）
-        modelDS = modelDS.addField("drawamount * p8z9_tzll * rate / 100 /" + curUnit, "p8z9_baseinterest");//利息（本位币）
+        modelDS = modelDS.addField("drawamount/" + curUnit, "p8z9_amt");// 融资余额（原币）
+        modelDS = modelDS.addField("p8z9_amt * rate", "p8z9_baseamt");// 融资余额（本位币）
+        modelDS = modelDS.addField("p8z9_baseamt", "p8z9_baseprincipal");// 本金（本位币） 目前等于融资余额（本位币）
+        modelDS = modelDS.addField("drawamount * p8z9_tzll * rate / 100 /" + curUnit, "p8z9_baseinterest");// 利息（本位币）
 
         return modelDS;
     }
 
     private DataSet queryModelDS(ReportQueryParam queryParam) {
         QFilter loanBillQFilter = FinanceHelper.loanBillQFilter(queryParam);
-        // 查询截止日期
-        loanBillQFilter.and(new QFilter("bizdate", "<=", this.cutoffdate));
         // 本年初
         loanBillQFilter.and(new QFilter("bizdate", ">=", DateUtil.beginOfYear(this.cutoffdate)));
         QFilter elFilter = loanBillQFilter.copy();
@@ -273,7 +331,7 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
             case "entrustloan":
             case "bankloan":
                 return "id AS loanbillid,org AS p8z9_org,bizdate,currency AS p8z9_srccur,drawamount,p8z9_tzll,finproduct.id";
-            case ""://作为后续融资租赁的冗余
+            case "":// 作为后续融资租赁的冗余
                 return "";
         }
         throw new KDException("不存在的数据源");
@@ -328,5 +386,16 @@ public class FinancingClassificationStatisticsDataListPlugin extends AbstractRep
             logger.error("查询融资品种最大级次失败");
             throw new KDBizException("查询融资品种最大级次失败");
         }
+    }
+
+    /**
+     * 获取担保占用
+     * @param loanBillIds
+     * @return
+     */
+    private DataSet queryGContractDs(List<Long> loanBillIds) {
+        QFilter gContractQFilter = new QFilter("gsrcbillid", "in", loanBillIds);
+        String gContractSelProps = "id,gsrcbillno,gsrcbillid,gcontract.guaranteeway AS guaranteeway,gratio";
+        return QueryServiceHelper.queryDataSet(getClass().getName(), "gm_guaranteeuse", gContractSelProps, gContractQFilter.toArray(), null);
     }
 }
